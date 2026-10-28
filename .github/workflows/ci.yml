@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      # Приложение под тестами — готовый образ Хекслета.
+      app:
+        image: hexletprojects/qa_auto_java_testing_kanban_board_project_ru_app
+        ports:
+          - 5173:5173
+    env:
+      APP_BASE_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: make lint
+      - name: Wait for the app
+        run: timeout 60 sh -c 'until curl -sf "$APP_BASE_URL" > /dev/null; do sleep 2; done'
+      - run: make test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-report
+          path: build/reports/tests/test
